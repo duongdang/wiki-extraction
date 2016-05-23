@@ -82,4 +82,16 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
     val quads = jobs.flatMap(_.getExtractor.apply(xml))
     quads should have size 9
   }
+
+  test("extract in spark") {
+    val config = ConfigUtils.loadConfig(config_file, "UTF-8")
+    val quads = Util.readDumpToPageRdd(sc, xml_dump_bz2).flatMap
+    { text =>
+      val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
+      val language = Language("en")
+      val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), language).head
+      jobs.flatMap(_.getExtractor.apply(xml))
+    }.collect()
+    quads should have size 9
+  }
 }
