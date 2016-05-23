@@ -26,6 +26,31 @@ import org.dbpedia.extraction.dump.extract.{Config,ConfigLoader}
 
 import org.dbpedia.extraction.util.Language
 import org.dbpedia.extraction.sources.XMLSource
+import org.dbpedia.extraction.destinations.Quad
+import java.io.Serializable
+
+case class SerializableQuad (
+  language: String,
+  dataset: String,
+  subject: String,
+  predicate: String,
+  value: String,
+  context: String,
+  datatype: String
+) extends Ordered[SerializableQuad] with Serializable {
+  import scala.math.Ordered.orderingToOrdered
+  def compare(that: SerializableQuad): Int =
+    (this.language, this.dataset, this.subject,
+      this.predicate, this.value, this.context, this.datatype) compare
+    (that.language, that.dataset, that.subject,
+      that.predicate, that.value, that.context, that.datatype)
+}
+
+object SerializableQuad {
+  def apply(quad: Quad) : SerializableQuad =
+    SerializableQuad(quad.language, quad.dataset, quad.subject,
+      quad.predicate, quad.value, quad.context, quad.datatype)
+}
 
 @RunWith(classOf[JUnitRunner])
 class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
@@ -59,12 +84,14 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
 
   test("read titles from xml dump") {
     val titles = get_titles(xml_dump)
+    titles should have size 2
     titles should contain ("Apache Spark")
     titles should contain ("Apache Hadoop")
   }
 
   test("read titles from xml bz2 dump") {
     val titles = get_titles(xml_dump_bz2)
+    titles should have size 2
     titles should contain ("Apache Spark")
     titles should contain ("Apache Hadoop")
   }
@@ -74,24 +101,38 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
     val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
   }
 
-  test("extract in sequence") {
+  def readQuadsInSequence() = {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
     val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
     val language = Language("en")
-    val xml = XMLSource.fromXML(XML.loadFile(xml_dump), language).head
-    val quads = jobs.flatMap(_.getExtractor.apply(xml))
-    quads should have size 9
+    XMLSource.fromXML(XML.loadFile(xml_dump), language).flatMap {
+      page => jobs.flatMap(_.getExtractor.apply(page)).map(SerializableQuad.apply)
+    }.toList.sorted
+
   }
 
-  test("extract in spark") {
+  test("extract in sequence") {
+    val quads = readQuadsInSequence()
+    quads should have size 18
+  }
+
+  def readQuadsInSpark() = {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
-    val quads = Util.readDumpToPageRdd(sc, xml_dump_bz2).flatMap
+      Util.readDumpToPageRdd(sc, xml_dump).flatMap
     { text =>
       val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
       val language = Language("en")
       val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), language).head
       jobs.flatMap(_.getExtractor.apply(xml))
-    }.collect()
-    quads should have size 9
+    }.map(SerializableQuad.apply).collect().toList.sorted
+  }
+
+  test("extract in spark") {
+    val quads = readQuadsInSpark()
+    val quadsSeq = readQuadsInSequence()
+    (quads.size) should equal (quadsSeq.size)
+    for (i <- 0 to quads.size - 1) {
+      (quads(i)) should equal (quadsSeq(i))
+    }
   }
 }
