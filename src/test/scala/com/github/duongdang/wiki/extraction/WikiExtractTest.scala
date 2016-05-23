@@ -21,10 +21,14 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{FunSuite,Matchers}
 
+import org.dbpedia.extraction.util.ConfigUtils
+import org.dbpedia.extraction.dump.extract.{Config,ConfigLoader}
+
 @RunWith(classOf[JUnitRunner])
 class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   val xml_dump = "src/test/resources/dumps/spark_hadoop_articles.xml"
   val xml_dump_bz2 = "src/test/resources/dumps/spark_hadoop_articles.xml.bz2"
+  val config_file = "src/test/resources/dbpedia/config.properties"
 
   test("really simple transformation") {
     val col = sc.parallelize(0 to 100 by 5)
@@ -62,4 +66,8 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
     titles should contain ("Apache Hadoop")
   }
 
+  test("create extraction job") {
+    val config = ConfigUtils.loadConfig(config_file, "UTF-8")
+    val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
+  }
 }
