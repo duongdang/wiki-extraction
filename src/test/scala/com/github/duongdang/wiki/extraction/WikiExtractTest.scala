@@ -24,10 +24,13 @@ import org.scalatest.{FunSuite,Matchers}
 import org.dbpedia.extraction.util.ConfigUtils
 import org.dbpedia.extraction.dump.extract.{Config,ConfigLoader}
 
+import org.dbpedia.extraction.util.Language
+import org.dbpedia.extraction.sources.XMLSource
+
 @RunWith(classOf[JUnitRunner])
 class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   val xml_dump = "src/test/resources/dumps/spark_hadoop_articles.xml"
-  val xml_dump_bz2 = "src/test/resources/dumps/spark_hadoop_articles.xml.bz2"
+  val xml_dump_bz2 = "src/test/resources/dumps/enwiki/20160501/enwiki-20160501-pages-articles.xml.bz2"
   val config_file = "src/test/resources/dbpedia/config.properties"
 
   test("really simple transformation") {
@@ -69,5 +72,14 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   test("create extraction job") {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
     val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
+  }
+
+  test("extract in sequence") {
+    val config = ConfigUtils.loadConfig(config_file, "UTF-8")
+    val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
+    val language = Language("en")
+    val xml = XMLSource.fromXML(XML.loadFile(xml_dump), language).head
+    val quads = jobs.flatMap(_.getExtractor.apply(xml))
+    quads should have size 9
   }
 }
