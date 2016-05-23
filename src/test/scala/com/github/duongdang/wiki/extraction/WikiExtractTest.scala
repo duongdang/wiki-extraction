@@ -50,11 +50,16 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
       .collect()
   }
 
-  test("read xml by record") {
-    for (fn <- List(xml_dump, xml_dump_bz2)){
-      val titles = get_titles(fn)
-      titles should contain ("Apache Spark")
-      titles should contain ("Apache Hadoop")
-    }
+  test("read titles from xml dump") {
+    val titles = get_titles(xml_dump)
+    titles should contain ("Apache Spark")
+    titles should contain ("Apache Hadoop")
   }
+
+  test("read titles from xml bz2 dump") {
+    val titles = get_titles(xml_dump_bz2)
+    titles should contain ("Apache Spark")
+    titles should contain ("Apache Hadoop")
+  }
+
 }
