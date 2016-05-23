@@ -14,22 +14,16 @@
 package com.github.duongdang.wiki.extraction
 
 import scala.xml.XML
-import org.apache.hadoop.mapred.JobConf
-import org.apache.hadoop.streaming.StreamXmlRecordReader
 import org.apache.spark.SparkContext
+import org.apache.hadoop.io.{LongWritable, Text}
 
 object Util {
   def readDumpToPageRdd(sc: SparkContext, path: String) = {
-    val jobConf = new JobConf()
-    jobConf.set("stream.recordreader.class", "org.apache.hadoop.streaming.StreamXmlRecordReader")
-    jobConf.set("stream.recordreader.begin", "<page")
-    jobConf.set("stream.recordreader.end", "</page>")
-    org.apache.hadoop.mapred.FileInputFormat.addInputPaths(jobConf, path)
-
-    // Load documents
-    sc.hadoopRDD(jobConf,classOf[org.apache.hadoop.streaming.StreamInputFormat],
-      classOf[org.apache.hadoop.io.Text],
-      classOf[org.apache.hadoop.io.Text])
-      .map(_._1.toString)
+    sc.newAPIHadoopFile(
+      path,
+      classOf[WikiInputFormat],
+      classOf[LongWritable],
+      classOf[Text])
+      .map(_._2.toString)
   }
 }
