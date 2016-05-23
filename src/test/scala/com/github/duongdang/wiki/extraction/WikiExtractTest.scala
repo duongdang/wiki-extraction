@@ -39,7 +39,7 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   }
 
   def get_titles(in : String) = {
-    Util.readDumpToPageRdd(sc, xml_dump)
+    Util.readDumpToPageRdd(sc, in)
       .map { s =>
       val xml = XML.loadString(s)
       val id = (xml \ "id").text.toDouble
