@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 package com.github.duongdang.wiki.extraction
+
 import java.util.Properties
-import org.dbpedia.extraction.dump.extract.{Config,ConfigLoader}
+
 import org.dbpedia.extraction.sources.XMLSource
 import org.dbpedia.extraction.util.Language
 import scala.xml.XML
@@ -21,7 +22,7 @@ import java.io.Serializable
 
 class DistExtractor(config: Properties, lang: String) extends Serializable{
   @transient private val language = Language(lang)
-  @transient private val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
+  @transient private val jobs = new DistConfigLoader(new DistConfig(config)).getExtractionJobs()
   def extract(text : String) = {
     val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), language).head
     jobs.flatMap(_.getExtractor.apply(xml)).map(SerializableQuad.apply)
