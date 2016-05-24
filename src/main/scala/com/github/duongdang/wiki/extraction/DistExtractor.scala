@@ -14,20 +14,38 @@
 package com.github.duongdang.wiki.extraction
 import java.util.Properties
 import org.dbpedia.extraction.dump.extract.{Config,ConfigLoader}
+import org.dbpedia.extraction.mappings.RootExtractor
 import org.dbpedia.extraction.sources.XMLSource
 import org.dbpedia.extraction.util.{ConfigUtils, Language}
+import org.dbpedia.extraction.util.ConfigUtils.{getValue,getStrings}
 import scala.xml.XML
 import java.io.Serializable
+import org.apache.hadoop.fs.Path
+import java.io.File
 
-class DistExtractor(config: Properties, lang: String) extends Serializable{
+class DistExtractor(props: Properties, lang: String) extends Serializable{
   @transient private val language = Language(lang)
-  @transient private val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
+  @transient private val extractors = createExtractors()
   def extract(text : String) = {
     val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), language).head
-    jobs.flatMap(_.getExtractor.apply(xml)).map(SerializableQuad.apply)
+    extractors.flatMap(_.apply(xml)).map(SerializableQuad.apply)
   }
+
+
+  private class DistConfig extends Config(props) {
+    override lazy val dumpDir: File = null
+    override lazy val ontologyFile: File = null
+    override lazy val mappingsDir: File = null
+  }
+
+
+  private def createExtractors() : Traversable[RootExtractor] = {
+    val config = new DistConfig()
+  }
+
+  private def createExtractor(
 }
 
 object DistExtractor {
-  def apply(config: Properties, lang: String) : DistExtractor =  new DistExtractor(config, lang)
+  def apply(props: Properties, lang: String) : DistExtractor =  new DistExtractor(props, lang)
 }
