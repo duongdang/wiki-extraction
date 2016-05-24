@@ -96,10 +96,6 @@ class DistConfigLoader(config: DistConfig)
         new RootExtractor(extractor)
     }
 
-    private def writer(file: File): () => Writer = {
-      () => IOUtils.writer(file)
-    }
-
     private def reader(file: File): () => Reader = {
       () => IOUtils.reader(file)
     }
