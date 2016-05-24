@@ -10,7 +10,7 @@ import org.dbpedia.extraction.util.{ConfigUtils, ExtractorUtils, Language}
 import org.dbpedia.extraction.util.ConfigUtils.{getValue,getStrings}
 
 
-class DistConfig(props: Properties)
+class DistConfig(props: Properties, language: Language)
 {
   // TODO: get rid of all config file parsers, use Spring
 
@@ -74,7 +74,7 @@ class DistConfig(props: Properties)
    */
   private def loadExtractorClasses() : Map[Language, Seq[Class[_ <: Extractor[_]]]] =
   {
-    val languages = ConfigUtils.parseLanguages(dumpDir,getStrings(props, "languages", ',', false))
+    val languages = Seq(language)
 
     ExtractorUtils.loadExtractorsMapFromConfig(languages, props)
   }

@@ -84,39 +84,11 @@ class DistConfigLoader(config: DistConfig)
             }
             def mappings : Mappings = _mappings
 
-            private val _articlesSource =
-            {
-              val articlesReaders = readers(config.source, finder, date)
+            def articlesSource: Source = null
 
-              XMLSource.fromReaders(articlesReaders, language,
-                    title => title.namespace == Namespace.Main || title.namespace == Namespace.File ||
-                             title.namespace == Namespace.Category || title.namespace == Namespace.Template ||
-                             title.namespace == Namespace.WikidataProperty || ExtractorUtils.titleContainsCommonsMetadata(title))
-            }
+            def redirects = new Redirects(Map())
 
-            def articlesSource = _articlesSource
-
-            private val _redirects =
-            {
-              val cache = finder.file(date, "template-redirects.obj")
-              Redirects.load(articlesSource, cache, language)
-            }
-
-            def redirects : Redirects = _redirects
-
-            private val _disambiguations =
-            {
-              val cache = finder.file(date, "disambiguations-ids.obj")
-              try {
-                Disambiguations.load(reader(finder.file(date, config.disambiguations)), cache, language)
-              } catch {
-                case ex: Exception =>
-                  logger.info("Could not load disambiguations - error: " + ex.getMessage)
-                  null
-              }
-            }
-
-            def disambiguations : Disambiguations = if (_disambiguations != null) _disambiguations else new Disambiguations(Set[Long]())
+            def disambiguations = new Disambiguations(Set[Long]())
         }
 
         //Extractors
