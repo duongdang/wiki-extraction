@@ -34,17 +34,17 @@ class DistConfigLoader(config: DistConfig)
      * @param configFile The configuration file
      * @return Non-strict Traversable over all configured extraction jobs i.e. an extractions job will not be created until it is explicitly requested.
      */
-    def getExtractionJobs(): Traversable[ExtractionJob] =
+    def getExtractors(): Traversable[RootExtractor] =
     {
       // Create a non-strict view of the extraction jobs
       // non-strict because we want to create the extraction job when it is needed, not earlier
-      config.extractorClasses.view.map(e => createExtractionJob(e._1, e._2))
+      config.extractorClasses.view.map(e => createExtractor(e._1, e._2))
     }
 
     /**
      * Creates ab extraction job for a specific language.
      */
-    private def createExtractionJob(lang : Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]) : ExtractionJob =
+    private def createExtractor(lang : Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]) : RootExtractor =
     {
         val finder = new Finder[File](config.dumpDir, lang, config.wikiName)
 
@@ -93,27 +93,7 @@ class DistConfigLoader(config: DistConfig)
 
         //Extractors
         val extractor = CompositeParseExtractor.load(extractorClasses, context)
-        val datasets = extractor.datasets
-
-        val formatDestinations = new ArrayBuffer[Destination]()
-        for ((suffix, format) <- config.formats) {
-
-          val datasetDestinations = new HashMap[String, Destination]()
-          for (dataset <- datasets) {
-            val file = finder.file(date, dataset.name.replace('_', '-')+'.'+suffix)
-            datasetDestinations(dataset.name) = new DeduplicatingDestination(new WriterDestination(writer(file), format))
-          }
-
-          formatDestinations += new DatasetDestination(datasetDestinations)
-        }
-
-        val destination = new MarkerDestination(new CompositeDestination(formatDestinations.toSeq: _*), finder.file(date, Extraction.Complete), false)
-
-        val description = lang.wikiCode+": "+extractorClasses.size+" extractors ("+extractorClasses.map(_.getSimpleName).mkString(",")+"), "+datasets.size+" datasets ("+datasets.mkString(",")+")"
-
-        val extractionJobNS = if(lang == Language.Commons) ExtractorUtils.commonsNamespacesContainingMetadata else config.namespaces
-
-        new ExtractionJob(new RootExtractor(extractor), context.articlesSource, extractionJobNS, destination, lang.wikiCode, description)
+        new RootExtractor(extractor)
     }
 
     private def writer(file: File): () => Writer = {

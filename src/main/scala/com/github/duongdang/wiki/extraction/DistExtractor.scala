@@ -22,10 +22,10 @@ import java.io.Serializable
 
 class DistExtractor(config: Properties, lang: String) extends Serializable{
   @transient private val language = Language(lang)
-  @transient private val jobs = new DistConfigLoader(new DistConfig(config, language)).getExtractionJobs()
+  @transient private val extractors = new DistConfigLoader(new DistConfig(config, language)).getExtractors()
   def extract(text : String) = {
     val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), language).head
-    jobs.flatMap(_.getExtractor.apply(xml)).map(SerializableQuad.apply)
+    extractors.flatMap(_.apply(xml)).map(SerializableQuad.apply)
   }
 }
 
