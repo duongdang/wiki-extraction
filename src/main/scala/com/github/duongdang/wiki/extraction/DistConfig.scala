@@ -15,16 +15,16 @@ class DistConfig(props: Properties, language: Language)
   // TODO: get rid of all config file parsers, use Spring
 
   /**
-   * Dump directory
-   * Note: This is lazy to defer initialization until actually called (eg. this class is not used
-   * directly in the distributed extraction framework - DistConfig.ExtractionConfig extends Config
-   * and overrides this val to null because it is not needed)
-   */
+    * Dump directory
+    * Note: This is lazy to defer initialization until actually called (eg. this class is not used
+    * directly in the distributed extraction framework - DistConfig.ExtractionConfig extends Config
+    * and overrides this val to null because it is not needed)
+    */
   lazy val dumpDir = getValue(props, "base-dir", true){
     x =>
-      val dir = new File(x)
-      if (! dir.exists) throw error("dir "+dir+" does not exist")
-      dir
+    val dir = new File(x)
+    if (! dir.exists) throw error("dir "+dir+" does not exist")
+    dir
   }
 
   val requireComplete = props.getProperty("require-download-complete", "false").toBoolean
@@ -38,19 +38,19 @@ class DistConfig(props: Properties, language: Language)
   val parser = props.getProperty("parser", "simple")
 
   /**
-   * Local ontology file, downloaded for speed and reproducibility
-   * Note: This is lazy to defer initialization until actually called (eg. this class is not used
-   * directly in the distributed extraction framework - DistConfig.ExtractionConfig extends Config
-   * and overrides this val to null because it is not needed)
-   */
+    * Local ontology file, downloaded for speed and reproducibility
+    * Note: This is lazy to defer initialization until actually called (eg. this class is not used
+    * directly in the distributed extraction framework - DistConfig.ExtractionConfig extends Config
+    * and overrides this val to null because it is not needed)
+    */
   lazy val ontologyFile = getValue(props, "ontology", false)(new File(_))
 
   /**
-   * Local mappings files, downloaded for speed and reproducibility
-   * Note: This is lazy to defer initialization until actually called (eg. this class is not used
-   * directly in the distributed extraction framework - DistConfig.ExtractionConfig extends Config
-   * and overrides this val to null because it is not needed)
-   */
+    * Local mappings files, downloaded for speed and reproducibility
+    * Note: This is lazy to defer initialization until actually called (eg. this class is not used
+    * directly in the distributed extraction framework - DistConfig.ExtractionConfig extends Config
+    * and overrides this val to null because it is not needed)
+    */
   lazy val mappingsDir = getValue(props, "mappings", false)(new File(_))
 
   val formats = parseFormats(props, "uri-policy", "format")
@@ -67,11 +67,11 @@ class DistConfig(props: Properties, language: Language)
   }
 
   /**
-   * Loads the extractors classes from the configuration.
-   * Loads only the languages defined in the languages property
-   *
-   * @return A Map which contains the extractor classes for each language
-   */
+    * Loads the extractors classes from the configuration.
+    * Loads only the languages defined in the languages property
+    *
+    * @return A Map which contains the extractor classes for each language
+    */
   private def loadExtractorClasses() : Map[Language, Seq[Class[_ <: Extractor[_]]]] =
   {
     val languages = Seq(language)
