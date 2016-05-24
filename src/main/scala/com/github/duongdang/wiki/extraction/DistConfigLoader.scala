@@ -46,16 +46,12 @@ class DistConfigLoader(config: DistConfig)
     */
   private def createExtractor(lang : Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]) : RootExtractor =
   {
-    val finder = new Finder[File](config.dumpDir, lang, config.wikiName)
-
-    val date = latestDate(finder)
-
     //Extraction Context
     val context = new DumpExtractionContext
     {
       def ontology = _ontology
 
-      def commonsSource = _commonsSource
+      def commonsSource : Source = null
 
       def language = lang
 
@@ -96,26 +92,6 @@ class DistConfigLoader(config: DistConfig)
     new RootExtractor(extractor)
   }
 
-  private def reader(file: File): () => Reader = {
-    () => IOUtils.reader(file)
-  }
-
-  private def readers(source: String, finder: Finder[File], date: String): List[() => Reader] = {
-
-    files(source, finder, date).map(reader(_))
-  }
-
-  private def files(source: String, finder: Finder[File], date: String): List[File] = {
-
-    val files = if (source.startsWith("@")) { // the articles source is a regex - we want to match multiple files
-      finder.matchFiles(date, source.substring(1))
-    } else List(finder.file(date, source))
-
-    logger.info(s"Source is ${source} - ${files.size} file(s) matched")
-
-    files
-  }
-
   //language-independent val
   private lazy val _ontology =
   {
@@ -134,18 +110,4 @@ class DistConfigLoader(config: DistConfig)
     new OntologyReader().read(ontologySource)
   }
 
-  //language-independent val
-  private lazy val _commonsSource =
-  {
-    val finder = new Finder[File](config.dumpDir, Language("commons"), config.wikiName)
-    val date = latestDate(finder)
-    XMLSource.fromReaders(readers(config.source, finder, date), Language.Commons, _.namespace == Namespace.File)
-  }
-
-  private def latestDate(finder: Finder[_]): String = {
-    val isSourceRegex = config.source.startsWith("@")
-    val source = if (isSourceRegex) config.source.substring(1) else config.source
-    val fileName = if (config.requireComplete) Download.Complete else source
-    finder.dates(fileName, isSuffixRegex = isSourceRegex).last
-  }
 }
