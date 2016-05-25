@@ -1,1 +1,1 @@
-src/test/resources linguist-vendored=false
+src/test/resources/* linguist-vendored=false
