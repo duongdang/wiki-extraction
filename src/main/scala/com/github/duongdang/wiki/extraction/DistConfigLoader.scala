@@ -19,14 +19,7 @@ import org.dbpedia.extraction.util.IOUtils
 class DistConfigLoader(config: DistConfig) {
   private val logger = Logger.getLogger(classOf[DistConfigLoader].getName)
 
-  def getExtractors(): Traversable[RootExtractor] =
-  {
-    config.extractorClasses.view.map(e => createExtractor(e._1, e._2))
-  }
-
-  private def createExtractor(lang : Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]) : RootExtractor =
-  {
-    //Extraction Context
+  def getExtractor() = {
     val context = new DumpExtractionContext
     {
       lazy val _ontology = new OntologyReader().read(XMLSource.fromXML(config.ontologyXML, Language.Mappings))
@@ -34,7 +27,7 @@ class DistConfigLoader(config: DistConfig) {
 
       def commonsSource : Source = null
 
-      def language = lang
+      def language = config.language
 
       private lazy val _mappingPageSource = XMLSource.fromXML(config.mappingXML, Language.Mappings)
       def mappingPageSource = _mappingPageSource
@@ -50,7 +43,7 @@ class DistConfigLoader(config: DistConfig) {
     }
 
     //Extractors
-    val extractor = CompositeParseExtractor.load(extractorClasses, context)
+    val extractor = CompositeParseExtractor.load(config.extractorClasses, context)
     new RootExtractor(extractor)
   }
 }

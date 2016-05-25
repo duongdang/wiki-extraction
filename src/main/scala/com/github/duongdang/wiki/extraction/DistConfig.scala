@@ -20,6 +20,7 @@ import java.io.File
 import org.dbpedia.extraction.mappings.Extractor
 
 import org.dbpedia.extraction.util.{ExtractorUtils, Language}
+import org.dbpedia.extraction.util.ConfigUtils.{getStrings}
 import org.dbpedia.extraction.wikiparser.Namespace
 import scala.collection.Map
 import scala.xml.XML
@@ -32,10 +33,6 @@ class DistConfig(props: Properties, lang: String) extends Serializable {
   val mappingXML = XML.loadFile(new File(props.getProperty("mappings"),
     namespace.name(Language.Mappings).replace(' ','_')+".xml"))
 
-  val extractorClasses = loadExtractorClasses()
-  private def loadExtractorClasses() : Map[Language, Seq[Class[_ <: Extractor[_]]]] = {
-    val languages = Seq(language)
-
-    ExtractorUtils.loadExtractorsMapFromConfig(languages, props)
-  }
+  @transient val extractorClasses = ExtractorUtils.loadExtractorClassSeq(
+    getStrings(props, "extractors", ',', false))
 }
