@@ -17,6 +17,7 @@ import java.util.logging.{Level, Logger}
 
 import org.apache.spark._
 import org.apache.spark.SparkContext._
+import org.apache.spark.sql.SQLContext
 
 import org.dbpedia.extraction.util.{ConfigUtils,Language}
 import org.dbpedia.util.Exceptions
@@ -31,6 +32,10 @@ object WikiExtractApp {
     val sc = new SparkContext(new SparkConf().setAppName("Extraction"))
     val config = ConfigUtils.loadConfig(conf, "UTF-8")
     val extractor = new DistExtractor(config, lang)
+
+    val sqlContext = new SQLContext(sc)
+    import sqlContext.implicits._
+
     Util.readDumpToPageRdd(sc, input)
       .flatMap { text =>
         try {
@@ -38,13 +43,13 @@ object WikiExtractApp {
         }
         catch {
           case ex: Exception =>
-            Logger.getLogger(getClass.getName).log(Level.WARNING,
+            Logger.getLogger("WikiExtractApp").log(Level.WARNING,
               "Processing error: %s. The page was: %s ..."
                 .format(Exceptions.toString(ex, 200), text.take(100)))
             Seq()
         }
         }.map { quad => List(quad.language, quad.dataset, quad.subject,
           quad.predicate, quad.value, quad.context, quad.datatype).mkString("\t") }
-          .saveAsTextFile(output)
+          .toDF.saveAsParquetFile(output)
   }
 }
