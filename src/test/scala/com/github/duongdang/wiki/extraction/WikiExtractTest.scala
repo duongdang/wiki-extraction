@@ -24,11 +24,13 @@ import org.dbpedia.extraction.sources.XMLSource
 
 import org.dbpedia.extraction.util.{ConfigUtils,Language}
 import org.dbpedia.extraction.dump.extract.{Config,ConfigLoader}
+import org.apache.hadoop.fs._
 
 @RunWith(classOf[JUnitRunner])
 class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
-  val xml_dump = "src/test/resources/dumps/spark_hadoop_articles.xml"
-  val xml_dump_bz2 = "src/test/resources/dumps/spark_hadoop_articles.xml.bz2"
+  val xml_dump_dir = "src/test/resources/dumps/xml"
+  val xml_dump = "src/test/resources/dumps/xml/enwiki_spark_hadoop_articles.xml"
+  val bz2_dump = "src/test/resources/dumps/bz2/enwiki_spark_hadoop_articles.xml.bz2"
   val config_file = "src/test/resources/dbpedia/config.properties"
 
   test("really simple transformation") {
@@ -44,8 +46,9 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   }
 
   def get_titles(in : String) = {
-    Util.readDumpToPageRdd(sc, in)
-      .map { s =>
+    Util.readToLangPageRdd(sc, new Path(in))
+      .map { p =>
+      val s = p._2
       val xml = XML.loadString(s)
       val id = (xml \ "id").text.toDouble
       val title = (xml \ "title").text
@@ -63,7 +66,7 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   }
 
   test("read titles from xml bz2 dump") {
-    val titles = get_titles(xml_dump_bz2)
+    val titles = get_titles(bz2_dump)
     titles should have size 2
     titles should contain ("Apache Spark")
     titles should contain ("Apache Hadoop")
@@ -89,12 +92,17 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   }
 
   def readQuadsInSpark() = {
+    val fs = FileSystem.get(sc.hadoopConfiguration)
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
-    val extractor = new DistExtractor(config, "en")
-    Util.readDumpToPageRdd(sc, xml_dump)
-      .flatMap(extractor.extract(_))
+
+    val extractors = Util.listLanguages(fs, new Path(xml_dump_dir)).map {
+      lang => (lang -> new DistExtractor(config, lang)) }.toMap
+
+    Util.readToLangPageRdd(sc, new Path(xml_dump))
+      .flatMap{case (lang, text) => extractors.get(lang).get.extract(text) }
       .collect().toList.sorted
   }
+
   test("extract in spark") {
     val quads = readQuadsInSpark()
     val quadsSeq = readQuadsInSequence()
@@ -105,12 +113,19 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   }
 
   def readQuadsInSparkWithBroadcast() = {
+    val fs = FileSystem.get(sc.hadoopConfiguration)
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
-    val extractor = sc.broadcast(new DistExtractor(config, "en"))
-    Util.readDumpToPageRdd(sc, xml_dump)
-      .flatMap(extractor.value.extract(_))
+
+    val extractors = Util.listLanguages(fs, new Path(xml_dump)).map {
+      lang => (lang -> new DistExtractor(config, lang)) }.toMap
+
+    val extractorsBC = sc.broadcast(extractors)
+
+    Util.readToLangPageRdd(sc, new Path(xml_dump))
+      .flatMap{case (lang, text) => extractorsBC.value.get(lang).get.extract(text) }
       .collect().toList.sorted
   }
+
   test("extract in spark with broacasted extractor") {
     val quads = readQuadsInSparkWithBroadcast()
     val quadsSeq = readQuadsInSequence()
@@ -118,5 +133,12 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
     for (i <- 0 to quads.size - 1) {
       (quads(i)) should equal (quadsSeq(i))
     }
+  }
+
+  test("list languages") {
+    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val langs = Util.listLanguages(fs, new Path(xml_dump_dir))
+    langs should contain ("war")
+    langs should contain ("en")
   }
 }

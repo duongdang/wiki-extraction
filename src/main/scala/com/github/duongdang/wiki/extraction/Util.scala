@@ -15,10 +15,21 @@ package com.github.duongdang.wiki.extraction
 
 import scala.xml.XML
 import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 import org.apache.hadoop.io.{LongWritable, Text}
+import org.apache.hadoop.fs._
+import scala.collection.mutable.ArrayBuffer
 
 object Util {
-  def readDumpToPageRdd(sc: SparkContext, path: String) = {
+  def listLanguages(fs: FileSystem, path: Path) = listDumps(fs, path).map(_._1)
+
+  def readToLangPageRdd(sc: SparkContext, path: Path) : RDD[(String, String)] = {
+    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val files = listDumps(fs, path)
+    files.map { p => readToPageRdd(sc, p._2).map{ page => (p._1, page) } }.reduce( _ union _)
+  }
+
+  private def readToPageRdd(sc: SparkContext, path: String) : RDD[String] = {
     sc.newAPIHadoopFile(
       path,
       classOf[WikiInputFormat],
@@ -26,4 +37,26 @@ object Util {
       classOf[Text])
       .map(_._2.toString)
   }
+
+  private def getAllFiles(fs: FileSystem, inputDir: Path) = {
+    val files = fs.listFiles(inputDir, true)
+
+    var fileArray = ArrayBuffer.empty[String]
+    while (files.hasNext) {
+      fileArray += files.next.getPath.toString
+    }
+    fileArray.toArray
+  }
+
+  private def listDumps(fs: FileSystem, path: Path) = {
+    val files = { if (fs.isDirectory(path)) getAllFiles(fs, path) else Array(path.toString) }
+    files.flatMap { fn =>
+      val pattern = """([a-z]{2,})wiki""".r
+      pattern findFirstIn fn match {
+        case Some(pattern(lang)) => Some(lang, fn)
+        case None => None
+      }
+    }
+  }
+
 }

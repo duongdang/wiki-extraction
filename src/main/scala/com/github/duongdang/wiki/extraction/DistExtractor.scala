@@ -29,6 +29,7 @@ import java.io.ObjectInputStream
 
 import scala.collection.immutable.Map
 import scala.xml.XML
+import java.util.logging.{Level, Logger}
 
 class DistExtractor(props: Properties, lang: String) extends Serializable {
   private val ontologyXML = XML.loadFile(props.getProperty("ontology"))

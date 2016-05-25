@@ -22,24 +22,33 @@ import org.apache.spark.sql.SQLContext
 import org.dbpedia.extraction.util.{ConfigUtils,Language}
 import org.dbpedia.util.Exceptions
 
+import org.apache.hadoop.fs._
+
 object WikiExtractApp {
   def main(args : Array[String]) {
     val conf = args(0)
-    val lang = args(1)
-    val input = args(2)
-    val output = args(3)
+    val input = args(1)
+    val output = args(2)
 
     val sc = new SparkContext(new SparkConf().setAppName("Extraction"))
     val config = ConfigUtils.loadConfig(conf, "UTF-8")
-    val extractor = new DistExtractor(config, lang)
 
     val sqlContext = new SQLContext(sc)
     import sqlContext.implicits._
 
-    Util.readDumpToPageRdd(sc, input)
-      .flatMap { text =>
+    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val langs = Util.listLanguages(fs, new Path(input))
+    println("Input: %s. Creating extractors for %d languages: %s".format(
+      input, langs.size, langs.mkString(",")))
+    assert(langs.size > 0)
+
+    val extractors = langs.map {
+      lang => (lang -> new DistExtractor(config, lang)) }.toMap
+
+    Util.readToLangPageRdd(sc, new Path(input))
+      .flatMap { case (lang, text) =>
         try {
-          extractor.extract(text)
+          extractors.get(lang).get.extract(text)
         }
         catch {
           case ex: Exception =>
