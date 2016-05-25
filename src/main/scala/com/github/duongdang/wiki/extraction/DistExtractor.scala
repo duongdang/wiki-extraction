@@ -15,7 +15,7 @@ package com.github.duongdang.wiki.extraction
 
 import java.io.Serializable
 import java.util.Properties
-import java.io.File
+import java.io.{File,IoException}
 
 import org.dbpedia.extraction.ontology.io.OntologyReader
 import org.dbpedia.extraction.dump.extract.{DumpExtractionContext}
@@ -37,14 +37,19 @@ class DistExtractor(props: Properties, lang: String) extends Serializable {
     XML.loadFile(new File(props.getProperty("mappings"),
     namespace.name(Language.Mappings).replace(' ','_')+".xml"))
   }
-  @transient private var impl = createExtractor()
 
+  @transient private var impl : RootExtractor = null
+
+  @throws(classOf[IOException])
   private def readObject(in: ObjectInputStream) {
     in.defaultReadObject()
     impl = createExtractor()
   }
 
   def extract(text : String) = {
+    if (impl == null) {
+      impl = createExtractor()
+    }
     val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), Language(lang)).head
     impl.apply(xml).map(SerializableQuad.apply)
   }
