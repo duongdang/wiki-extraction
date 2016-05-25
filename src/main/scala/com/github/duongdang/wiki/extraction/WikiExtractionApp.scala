@@ -27,7 +27,7 @@ object WikiExtractApp {
 
     val sc = new SparkContext()
     val config = ConfigUtils.loadConfig(conf, "UTF-8")
-    val extractor = sc.broadcast(DistExtractor(config, lang))
+    val extractor = sc.broadcast(new DistExtractor(config, lang))
     Util.readDumpToPageRdd(sc, input)
       .flatMap(extractor.value.extract(_))
       .map { quad => List(quad.language, quad.dataset, quad.subject,

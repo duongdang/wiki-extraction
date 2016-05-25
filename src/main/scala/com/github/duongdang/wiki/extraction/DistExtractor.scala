@@ -13,22 +13,63 @@
 // limitations under the License.
 package com.github.duongdang.wiki.extraction
 
-import java.util.Properties
-
-import org.dbpedia.extraction.sources.XMLSource
-import org.dbpedia.extraction.util.Language
-import scala.xml.XML
 import java.io.Serializable
+import java.util.Properties
+import java.io.File
 
-class DistExtractor(config: Properties, lang: String) extends Serializable{
-  @transient private val language = Language(lang)
-  @transient private val extractor = new DistConfigLoader(new DistConfig(config, lang)).getExtractor()
-  def extract(text : String) = {
-    val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), language).head
-    extractor.apply(xml).map(SerializableQuad.apply)
+import org.dbpedia.extraction.ontology.io.OntologyReader
+import org.dbpedia.extraction.dump.extract.{DumpExtractionContext}
+import org.dbpedia.extraction.sources.{XMLSource, Source}
+import org.dbpedia.extraction.util.ConfigUtils.{getStrings}
+import org.dbpedia.extraction.util.{ExtractorUtils, Language}
+import org.dbpedia.extraction.wikiparser.{Namespace}
+import org.dbpedia.extraction.mappings.{CompositeParseExtractor,MappingsLoader,
+  Disambiguations,Redirects,RootExtractor}
+import java.io.ObjectInputStream
+
+import scala.collection.immutable.Map
+import scala.xml.XML
+
+class DistExtractor(props: Properties, lang: String) extends Serializable {
+  private val ontologyXML = XML.loadFile(props.getProperty("ontology"))
+  private val mappingXML = {
+    val namespace = Namespace.mappings(Language(lang))
+    XML.loadFile(new File(props.getProperty("mappings"),
+    namespace.name(Language.Mappings).replace(' ','_')+".xml"))
   }
-}
+  @transient private var impl = createExtractor()
 
-object DistExtractor {
-  def apply(config: Properties, lang: String) : DistExtractor =  new DistExtractor(config, lang)
+  private def readObject(in: ObjectInputStream) {
+    in.defaultReadObject()
+    impl = createExtractor()
+  }
+
+  def extract(text : String) = {
+    val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), Language(lang)).head
+    impl.apply(xml).map(SerializableQuad.apply)
+  }
+
+  def createExtractor() = {
+    val extractorClasses = ExtractorUtils.loadExtractorClassSeq(
+      getStrings(props, "extractors", ',', false))
+    val context = new DumpExtractionContext
+    {
+      def ontology = new OntologyReader().read(XMLSource.fromXML(ontologyXML, Language.Mappings))
+
+      def commonsSource : Source = null
+
+      def language = Language(lang)
+
+      def mappingPageSource = XMLSource.fromXML(mappingXML, Language.Mappings)
+
+      def mappings = MappingsLoader.load(this)
+
+      def articlesSource: Source = null
+
+      def redirects : Redirects = new Redirects(Map())
+
+      def disambiguations = new Disambiguations(Set[Long]())
+    }
+    new RootExtractor(CompositeParseExtractor.load(extractorClasses, context))
+  }
 }

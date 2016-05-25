@@ -71,17 +71,16 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
 
   test("create extraction job") {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
-    val extractor = new DistConfigLoader(new DistConfig(config, "en")).getExtractor()
+    val extractor = new DistExtractor(config, "en")
   }
 
   def readQuadsInSequence() = {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
-    val extractor = new DistConfigLoader(new DistConfig(config, "en")).getExtractor()
+    val extractor = new DistExtractor(config, "en")
     val language = Language("en")
     XMLSource.fromXML(XML.loadFile(xml_dump), language)
-      .flatMap(extractor.apply(_)).map(SerializableQuad.apply)
+      .flatMap(extractor.createExtractor().apply(_)).map(SerializableQuad.apply)
       .toList.sorted
-
   }
 
   test("extract in sequence") {
@@ -91,8 +90,9 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
 
   def readQuadsInSpark() = {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
+    val extractor = new DistExtractor(config, "en")
     Util.readDumpToPageRdd(sc, xml_dump)
-      .flatMap(DistExtractor(config, "en").extract(_))
+      .flatMap(extractor.extract(_))
       .collect().toList.sorted
   }
   test("extract in spark") {
@@ -106,7 +106,7 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
 
   def readQuadsInSparkWithBroadcast() = {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
-    val extractor = sc.broadcast(DistExtractor(config, "en"))
+    val extractor = sc.broadcast(new DistExtractor(config, "en"))
     Util.readDumpToPageRdd(sc, xml_dump)
       .flatMap(extractor.value.extract(_))
       .collect().toList.sorted
