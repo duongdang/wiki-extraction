@@ -1,1 +1,3 @@
-src/test/resources/* linguist-vendored=false
+src/test/resources/dbpedia/mappings/* linguist-vendored=false
+src/test/resources/dbpedia/* linguist-vendored=false
+src/test/resources/dumps/* linguist-vendored=false
