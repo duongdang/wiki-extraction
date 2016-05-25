@@ -71,16 +71,16 @@ class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
 
   test("create extraction job") {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
-    val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
+    val extractor = new DistConfigLoader(new DistConfig(config, "en")).getExtractor()
   }
 
   def readQuadsInSequence() = {
     val config = ConfigUtils.loadConfig(config_file, "UTF-8")
-    val jobs = new ConfigLoader(new Config(config)).getExtractionJobs()
+    val extractor = new DistConfigLoader(new DistConfig(config, "en")).getExtractor()
     val language = Language("en")
-    XMLSource.fromXML(XML.loadFile(xml_dump), language).flatMap {
-      page => jobs.flatMap(_.getExtractor.apply(page)).map(SerializableQuad.apply)
-    }.toList.sorted
+    XMLSource.fromXML(XML.loadFile(xml_dump), language)
+      .flatMap(extractor.apply(_)).map(SerializableQuad.apply)
+      .toList.sorted
 
   }
 
