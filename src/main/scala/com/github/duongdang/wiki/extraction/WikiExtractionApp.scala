@@ -48,8 +48,6 @@ object WikiExtractApp {
                 .format(Exceptions.toString(ex, 200), text.take(100)))
             Seq()
         }
-        }.map { quad => List(quad.language, quad.dataset, quad.subject,
-          quad.predicate, quad.value, quad.context, quad.datatype).mkString("\t") }
-          .toDF.saveAsParquetFile(output)
+        }.toDF.saveAsParquetFile(output)
   }
 }
