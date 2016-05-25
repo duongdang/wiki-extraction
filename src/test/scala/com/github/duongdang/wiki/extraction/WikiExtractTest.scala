@@ -28,7 +28,7 @@ import org.dbpedia.extraction.dump.extract.{Config,ConfigLoader}
 @RunWith(classOf[JUnitRunner])
 class WikiExtractTest extends FunSuite with SharedSparkContext with Matchers {
   val xml_dump = "src/test/resources/dumps/spark_hadoop_articles.xml"
-  val xml_dump_bz2 = "src/test/resources/dumps/enwiki/20160501/enwiki-20160501-pages-articles.xml.bz2"
+  val xml_dump_bz2 = "src/test/resources/dumps/spark_hadoop_articles.xml.bz2"
   val config_file = "src/test/resources/dbpedia/config.properties"
 
   test("really simple transformation") {
