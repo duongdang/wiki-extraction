@@ -15,7 +15,7 @@ package com.github.duongdang.wiki.extraction
 
 import java.io.Serializable
 import java.util.Properties
-import java.io.{File,IoException}
+import java.io.{File,IOException}
 
 import org.dbpedia.extraction.ontology.io.OntologyReader
 import org.dbpedia.extraction.dump.extract.{DumpExtractionContext}
@@ -38,18 +38,14 @@ class DistExtractor(props: Properties, lang: String) extends Serializable {
     namespace.name(Language.Mappings).replace(' ','_')+".xml"))
   }
 
-  @transient private var impl : RootExtractor = null
+  @transient private var impl : RootExtractor = createExtractor()
 
-  @throws(classOf[IOException])
   private def readObject(in: ObjectInputStream) {
     in.defaultReadObject()
     impl = createExtractor()
   }
 
   def extract(text : String) = {
-    if (impl == null) {
-      impl = createExtractor()
-    }
     val xml = XMLSource.fromXML(XML.loadString("<mediawiki>" + text + "</mediawiki>"), Language(lang)).head
     impl.apply(xml).map(SerializableQuad.apply)
   }
@@ -57,22 +53,21 @@ class DistExtractor(props: Properties, lang: String) extends Serializable {
   def createExtractor() = {
     val extractorClasses = ExtractorUtils.loadExtractorClassSeq(
       getStrings(props, "extractors", ',', false))
-    val context = new DumpExtractionContext
-    {
-      def ontology = new OntologyReader().read(XMLSource.fromXML(ontologyXML, Language.Mappings))
 
+    val context = new DumpExtractionContext {
+      lazy val _ontology = new OntologyReader().read(XMLSource.fromXML(ontologyXML, Language.Mappings))
+      lazy val _mappingPageSource =  XMLSource.fromXML(mappingXML, Language.Mappings)
+      lazy val _language = Language(lang)
+      lazy val _redirects = new Redirects(Map())
+      lazy val _mappings = MappingsLoader.load(this)
+      def ontology = _ontology
       def commonsSource : Source = null
+      def language = _language
+      def mappingPageSource = _mappingPageSource
 
-      def language = Language(lang)
-
-      def mappingPageSource = XMLSource.fromXML(mappingXML, Language.Mappings)
-
-      def mappings = MappingsLoader.load(this)
-
+      def mappings = _mappings
       def articlesSource: Source = null
-
-      def redirects : Redirects = new Redirects(Map())
-
+      def redirects = _redirects
       def disambiguations = new Disambiguations(Set[Long]())
     }
     new RootExtractor(CompositeParseExtractor.load(extractorClasses, context))

@@ -13,10 +13,13 @@
 // limitations under the License.
 package com.github.duongdang.wiki.extraction
 
+import java.util.logging.{Level, Logger}
+
 import org.apache.spark._
 import org.apache.spark.SparkContext._
 
 import org.dbpedia.extraction.util.{ConfigUtils,Language}
+import org.dbpedia.util.Exceptions
 
 object WikiExtractApp {
   def main(args : Array[String]) {
@@ -25,13 +28,23 @@ object WikiExtractApp {
     val input = args(2)
     val output = args(3)
 
-    val sc = new SparkContext()
+    val sc = new SparkContext(new SparkConf().setAppName("Extraction"))
     val config = ConfigUtils.loadConfig(conf, "UTF-8")
-    val extractor = sc.broadcast(new DistExtractor(config, lang))
+    val extractor = new DistExtractor(config, lang)
     Util.readDumpToPageRdd(sc, input)
-      .flatMap(extractor.value.extract(_))
-      .map { quad => List(quad.language, quad.dataset, quad.subject,
-        quad.predicate, quad.value, quad.context, quad.datatype).mkString("\t") }
-      .saveAsTextFile(output)
+      .flatMap { text =>
+        try {
+          extractor.extract(text)
+        }
+        catch {
+          case ex: Exception =>
+            Logger.getLogger(getClass.getName).log(Level.WARNING,
+              "Processing error: %s. The page was: %s ..."
+                .format(Exceptions.toString(ex, 200), text.take(100)))
+            Seq()
+        }
+        }.map { quad => List(quad.language, quad.dataset, quad.subject,
+          quad.predicate, quad.value, quad.context, quad.datatype).mkString("\t") }
+          .saveAsTextFile(output)
   }
 }
