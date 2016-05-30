@@ -18,13 +18,69 @@ import org.apache.spark.rdd.RDD
 
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
+import java.io.Serializable
 
-class LatentSemanticAnalyzer(sc: SparkContext, input: String, stopwords_fn: String, k: Int = 1000,
-  numTerms: Int = 50000) {
-    val (termDocMatrix, termIds, docIds, idfs) = preprocess()
-    termDocMatrix.cache()
-    val mat = new RowMatrix(termDocMatrix)
-    val svd = mat.computeSVD(k, computeU=true)
+case class ConceptRelevance(
+  relation: String,
+  ref: String,
+  obj: String,
+  score: Double
+) extends Serializable
+
+class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwords_fn: String,
+  numConcepts: Int = 1000,
+  numTermsCap: Int = 50000) extends Serializable {
+  import LatentSemanticAnalyzer._
+  val stopWords = sc.broadcast(ParseWikipedia.loadStopWords(stopwords_fn)).value
+
+  val (termDocMatrix, termIds, docIds, idfs) = preprocess()
+  termDocMatrix.cache()
+  val mat = new RowMatrix(termDocMatrix)
+  val svd = mat.computeSVD(numConcepts, computeU=true)
+
+  val vArray = sc.broadcast(svd.V.toArray).value
+  val sArray = sc.broadcast(svd.s.toArray).value
+  val vsArray = {
+    val VS = multiplyByDiagonalMatrix(svd.V, svd.s)
+    val normalizedVS = rowsNormalized(VS)
+    sc.broadcast(normalizedVS.toArray).value
+  }
+
+  val numTerms = svd.V.numRows
+  val distTermIds = sc.broadcast(termIds).value
+  val distNumConcepts = sc.broadcast(numConcepts).value
+  val distDocIds = sc.broadcast(docIds).value
+
+  def conceptRelevances() = {
+    val singularVals = sArray.zipWithIndex.map {
+      case(v, i) => ConceptRelevance("concept_strength", i.toString, null, v) }
+
+    val termToConcept = sc.parallelize(List.range(0, numConcepts)).flatMap{ conceptId =>
+      val offs = conceptId * numConcepts
+      vArray.slice(offs, offs + numConcepts).zipWithIndex.map{
+        case (score, id) =>
+          ConceptRelevance("term_to_concept", conceptId.toString, distTermIds(id), score)
+      }
+    }
+
+    val docToConcept = List.range(0, numConcepts).map { conceptId =>
+      val docWeights = svd.U.rows.map(_.toArray(conceptId)).zipWithUniqueId
+      docWeights.map{case (score, id) => ConceptRelevance("doc_to_concept", conceptId.toString, distDocIds(id), score)}
+    }.reduce(_ union _)
+
+    val termToTerm = sc.parallelize(List.range(0, numTerms)).flatMap { termId =>
+      val offs = termId * numConcepts
+      val termRowVec = new BDenseVector[Double](vsArray.slice(offs, offs + numConcepts))
+      // Compute scores against every term
+      val VS = new BDenseMatrix(numTerms, numConcepts, vsArray)
+      val termScores = (VS * termRowVec).toArray.zipWithIndex
+      termScores.map {
+        case(score, oid) => ConceptRelevance("term_to_term", distTermIds(termId), distTermIds(oid), score)
+      }
+    }
+
+    sc.parallelize(singularVals) union termToConcept union docToConcept union termToTerm
+  }
 
   /**
    * Returns
@@ -38,8 +94,6 @@ class LatentSemanticAnalyzer(sc: SparkContext, input: String, stopwords_fn: Stri
 
     val plainText = pages.filter(_ != null).flatMap(ParseWikipedia.wikiXmlToPlainText)
 
-    val stopWords = sc.broadcast(ParseWikipedia.loadStopWords(stopwords_fn)).value
-
     val lemmatized = plainText.mapPartitions(iter => {
       val pipeline = ParseWikipedia.createNLPPipeline()
       iter.map{ case(title, contents) =>
@@ -48,7 +102,7 @@ class LatentSemanticAnalyzer(sc: SparkContext, input: String, stopwords_fn: Stri
 
     val filtered = lemmatized.filter(_._2.size > 1)
 
-    ParseWikipedia.documentTermMatrix(filtered, stopWords, numTerms, sc)
+    ParseWikipedia.documentTermMatrix(filtered, stopWords, numTermsCap, sc)
   }
 
   def topTermsInTopConcepts(numConcepts: Int, numTerms: Int): Seq[Seq[(String, Double)]] = {
@@ -73,14 +127,12 @@ class LatentSemanticAnalyzer(sc: SparkContext, input: String, stopwords_fn: Stri
     }
     topDocs
   }
-
-
 }
 
 object LatentSemanticAnalyzer {
-  def apply (sc: SparkContext, input: String, stopwords_fn: String, k: Int = 100,
-  numTerms: Int = 50000) =
-    new LatentSemanticAnalyzer(sc, input, stopwords_fn, k, numTerms)
+  def apply (sc: SparkContext, input: String, stopwords_fn: String, numConcepts: Int = 100,
+  numTermsCap: Int = 50000) =
+    new LatentSemanticAnalyzer(sc, input, stopwords_fn, numConcepts, numTermsCap)
   /**
    * Selects a row from a matrix.
    */

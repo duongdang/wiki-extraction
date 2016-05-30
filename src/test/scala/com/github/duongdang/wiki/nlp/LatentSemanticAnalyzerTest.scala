@@ -54,5 +54,18 @@ class LatentSemanticAnalyzerTest extends FunSuite with SharedSparkContext with M
       println()
     }
   }
+}
+
+@RunWith(classOf[JUnitRunner])
+class LatentSemanticAnalyzerOutputTest extends FunSuite with SharedSparkContext with Matchers {
+  val xml_dump = "src/test/resources/nlp/enwiki_sports_music.xml"
+  val xml_wikitravel_dump = "src/test/resources/nlp/enwikitravel_lyon_indian_ocean.xml"
+  val stopwords_file = "src/main/resources/nlp/en_stopwords.txt"
+
+  test("output relevency rdd") {
+    val no_groups = 7
+    val lsa = LatentSemanticAnalyzer(sc, xml_wikitravel_dump, stopwords_file, no_groups, 50000)
+    lsa.conceptRelevances().take(10).foreach(println)
+  }
 
 }
