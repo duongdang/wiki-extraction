@@ -74,11 +74,6 @@
       <classifier>models</classifier>
     </dependency>
     <dependency>
-      <groupId>edu.umd</groupId>
-      <artifactId>cloud9</artifactId>
-      <version>1.5.0</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-mllib_${scala.minor.version}</artifactId>
       <version>${spark.version}</version>

@@ -1,8 +1,8 @@
 Advanced Analytics with Spark by Ryza et al.
 --------------------------------------------
-The files:
-- lsa/ParseWikipedia.scala
-- lsa/RunLSA.scala
+Significant portions of the files:
+- nlp/ParseWikipedia.scala
+- nlp/LatentSemanticAnalyzer.scala
 
 These code examples are excerpted from Advanced Analytics with Spark by Sanford Ryza,
 Uri Laserson, Sean Owen and Joshua Wills published by O'Reilly Media, Inc.

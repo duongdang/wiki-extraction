@@ -4,13 +4,10 @@
  * See LICENSE file for further information.
  */
 
-package com.cloudera.datascience.lsa
+package com.github.duongdang.wiki.nlp
 
 import edu.stanford.nlp.ling.CoreAnnotations.{LemmaAnnotation, SentencesAnnotation, TokensAnnotation}
 import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
-
-import edu.umd.cloud9.collection.wikipedia.WikipediaPage
-import edu.umd.cloud9.collection.wikipedia.language.EnglishWikipediaPage
 
 import java.io.{FileOutputStream, PrintStream}
 import java.util.Properties
@@ -27,14 +24,21 @@ import scala.collection.JavaConverters._
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
+import java.util.logging.{Level, Logger}
+
+import scala.xml.XML
 
 object ParseWikipedia {
   /**
    * Returns a document-term matrix where each element is the TF-IDF of the row's document and
    * the column's term.
    */
-  def documentTermMatrix(docs: RDD[(String, Seq[String])], stopWords: Set[String], numTerms: Int,
-      sc: SparkContext): (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
+  val logger = Logger.getLogger("ParseWikipedia")
+
+  def documentTermMatrix(docs: RDD[(String, Seq[String])],
+    stopWords: Set[String], numTerms: Int,
+    sc: SparkContext):
+      (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
     val docTermFreqs = docs.mapValues(terms => {
       val termFreqsInDoc = terms.foldLeft(new HashMap[String, Int]()) {
         (map, term) => map += term -> (map.getOrElse(term, 0) + 1)
@@ -110,14 +114,17 @@ object ParseWikipedia {
   /**
    * Returns a (title, content) pair
    */
-  def wikiXmlToPlainText(pageXml: String): Option[(String, String)] = {
-    val page = new EnglishWikipediaPage()
-    WikipediaPage.readPage(page, pageXml)
-    if (page.isEmpty || !page.isArticle || page.isRedirect ||
-        page.getTitle.contains("(disambiguation)")) {
+  def wikiXmlToPlainText(s: String): Option[(String, String)] = {
+    val xml = XML.loadString(s)
+    val title = (xml \ "title").text
+    val text = (xml \ "revision" \ "text").text
+
+    if (text.isEmpty || title.contains("disambiguation") || title.contains(":")) {
+      logger.log(Level.WARNING, "Ignoring page %s".format(title))
+        // "Ignoring page %s. isEmpty=%b, isArticle=%b, isRedirect=%b".format(page.getTitle, page.isEmpty, page.isArticle, page.isRedirect))
       None
     } else {
-      Some((page.getTitle, page.getContent))
+      Some((title, text))
     }
   }
 

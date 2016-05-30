@@ -4,13 +4,11 @@
  * See LICENSE file for further information.
  */
 
-package com.cloudera.datascience.lsa
+package com.github.duongdang.wiki.nlp
 
 import com.github.duongdang.wiki.io.Util
 import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector,
 SparseVector => BSparseVector}
-
-import com.cloudera.datascience.lsa.ParseWikipedia._
 
 import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.SparkContext._
@@ -21,56 +19,39 @@ import org.apache.spark.rdd.RDD
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 
-object RunLSA {
-  def main(args: Array[String]) {
-    val k = if (args.length > 0) args(0).toInt else 100
-    val numTerms = if (args.length > 1) args(1).toInt else 50000
-    val sampleSize = if (args.length > 2) args(2).toDouble else 0.1
-
-    val conf = new SparkConf().setAppName("Wiki LSA")
-    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    val sc = new SparkContext(conf)
-
-    val (termDocMatrix, termIds, docIds, idfs) = preprocessing(sampleSize, numTerms, sc)
+class LatentSemanticAnalyzer(sc: SparkContext, input: String, stopwords_fn: String, k: Int = 1000,
+  numTerms: Int = 50000) {
+    val (termDocMatrix, termIds, docIds, idfs) = preprocess()
     termDocMatrix.cache()
     val mat = new RowMatrix(termDocMatrix)
     val svd = mat.computeSVD(k, computeU=true)
 
-    println("Singular values: " + svd.s)
-    val topConceptTerms = topTermsInTopConcepts(svd, 10, 10, termIds)
-    val topConceptDocs = topDocsInTopConcepts(svd, 10, 10, docIds)
-    for ((terms, docs) <- topConceptTerms.zip(topConceptDocs)) {
-      println("Concept terms: " + terms.map(_._1).mkString(", "))
-      println("Concept docs: " + docs.map(_._1).mkString(", "))
-      println()
-    }
-  }
-
   /**
-   * Returns an RDD of rows of the document-term matrix, a mapping of column indices to terms, and a
-   * mapping of row IDs to document titles.
+   * Returns
+   *   - an RDD of rows of the document-term matrix,
+   *   - a mapping of column indices to terms,
+   *   - a mapping of row IDs to document titles.
+   *   - idfs values
    */
-  def preprocessing(sampleSize: Double, numTerms: Int, sc: SparkContext)
-      : (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
-    val pages = Util.readToPageRdd(sc, "hdfs:///user/ds/Wikipedia/")
-      .sample(false, sampleSize, 11L)
+  def preprocess() : (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
+    val pages = Util.readToPageRdd(sc, input)
 
-    val plainText = pages.filter(_ != null).flatMap(wikiXmlToPlainText)
+    val plainText = pages.filter(_ != null).flatMap(ParseWikipedia.wikiXmlToPlainText)
 
-    val stopWords = sc.broadcast(loadStopWords("stopwords.txt")).value
+    val stopWords = sc.broadcast(ParseWikipedia.loadStopWords(stopwords_fn)).value
 
     val lemmatized = plainText.mapPartitions(iter => {
-      val pipeline = createNLPPipeline()
-      iter.map{ case(title, contents) => (title, plainTextToLemmas(contents, stopWords, pipeline))}
+      val pipeline = ParseWikipedia.createNLPPipeline()
+      iter.map{ case(title, contents) =>
+        (title, ParseWikipedia.plainTextToLemmas(contents, stopWords, pipeline))}
     })
 
     val filtered = lemmatized.filter(_._2.size > 1)
 
-    documentTermMatrix(filtered, stopWords, numTerms, sc)
+    ParseWikipedia.documentTermMatrix(filtered, stopWords, numTerms, sc)
   }
 
-  def topTermsInTopConcepts(svd: SingularValueDecomposition[RowMatrix, Matrix], numConcepts: Int,
-      numTerms: Int, termIds: Map[Int, String]): Seq[Seq[(String, Double)]] = {
+  def topTermsInTopConcepts(numConcepts: Int, numTerms: Int): Seq[Seq[(String, Double)]] = {
     val v = svd.V
     val topTerms = new ArrayBuffer[Seq[(String, Double)]]()
     val arr = v.toArray
@@ -83,8 +64,7 @@ object RunLSA {
     topTerms
   }
 
-  def topDocsInTopConcepts(svd: SingularValueDecomposition[RowMatrix, Matrix], numConcepts: Int,
-      numDocs: Int, docIds: Map[Long, String]): Seq[Seq[(String, Double)]] = {
+  def topDocsInTopConcepts(numConcepts: Int, numDocs: Int): Seq[Seq[(String, Double)]] = {
     val u  = svd.U
     val topDocs = new ArrayBuffer[Seq[(String, Double)]]()
     for (i <- 0 until numConcepts) {
@@ -94,6 +74,13 @@ object RunLSA {
     topDocs
   }
 
+
+}
+
+object LatentSemanticAnalyzer {
+  def apply (sc: SparkContext, input: String, stopwords_fn: String, k: Int = 100,
+  numTerms: Int = 50000) =
+    new LatentSemanticAnalyzer(sc, input, stopwords_fn, k, numTerms)
   /**
    * Selects a row from a matrix.
    */
