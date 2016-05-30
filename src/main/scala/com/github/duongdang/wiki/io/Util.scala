@@ -29,7 +29,7 @@ object Util {
     files.map { p => readToPageRdd(sc, p._2).map{ page => (p._1, page) } }.reduce( _ union _)
   }
 
-  private def readToPageRdd(sc: SparkContext, path: String) : RDD[String] = {
+  def readToPageRdd(sc: SparkContext, path: String) : RDD[String] = {
     sc.newAPIHadoopFile(
       path,
       classOf[WikiInputFormat],

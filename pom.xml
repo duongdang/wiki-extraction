@@ -28,8 +28,10 @@
     <maven.compiler.target>1.7</maven.compiler.target>
     <encoding>UTF-8</encoding>
     <scala.tools.version>2.10</scala.tools.version>
+    <scala.minor.version>2.10</scala.minor.version>
     <scala.version>2.10.4</scala.version>
     <spark.version>1.5.0</spark.version>
+    <corenlp.version>3.4.1</corenlp.version>
   </properties>
 
   <dependencies>
@@ -52,13 +54,35 @@
     </dependency>
     <dependency>
       <groupId>org.dbpedia.extraction</groupId>
-      <artifactId>core_2.10</artifactId>
+      <artifactId>core_${scala.minor.version}</artifactId>
       <version>4.2-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.dbpedia.extraction</groupId>
-      <artifactId>dump_2.10</artifactId>
+      <artifactId>dump_${scala.minor.version}</artifactId>
       <version>4.2-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>edu.stanford.nlp</groupId>
+      <artifactId>stanford-corenlp</artifactId>
+      <version>${corenlp.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>edu.stanford.nlp</groupId>
+      <artifactId>stanford-corenlp</artifactId>
+      <version>${corenlp.version}</version>
+      <classifier>models</classifier>
+    </dependency>
+    <dependency>
+      <groupId>edu.umd</groupId>
+      <artifactId>cloud9</artifactId>
+      <version>1.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-mllib_${scala.minor.version}</artifactId>
+      <version>${spark.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <!-- Test -->
