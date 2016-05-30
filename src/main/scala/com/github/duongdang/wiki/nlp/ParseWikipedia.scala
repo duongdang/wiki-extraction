@@ -51,7 +51,7 @@ object ParseWikipedia {
 
     val docFreqs = documentFrequenciesDistributed(docTermFreqs.map(_._2), numTerms)
     println("Number of terms: " + docFreqs.size)
-    saveDocFreqs("docfreqs.tsv", docFreqs)
+    // saveDocFreqs("docfreqs.tsv", docFreqs)
 
     val numDocs = docIds.size
 

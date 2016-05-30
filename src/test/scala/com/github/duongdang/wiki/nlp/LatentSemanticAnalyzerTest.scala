@@ -25,12 +25,13 @@ class LatentSemanticAnalyzerTest extends FunSuite with SharedSparkContext with M
   val stopwords_file = "src/main/resources/nlp/stopwords.txt"
 
   test("create ls analyzer") {
-    val lsa = LatentSemanticAnalyzer(sc, xml_dump, stopwords_file, 10, 50000)
+    val no_groups = 4
+    val lsa = LatentSemanticAnalyzer(sc, xml_dump, stopwords_file, no_groups, 50000)
 
     println("Singular values: " + lsa.svd.s)
 
-    val topConceptTerms = lsa.topTermsInTopConcepts(10, 10)
-    val topConceptDocs = lsa.topDocsInTopConcepts(10, 10)
+    val topConceptTerms = lsa.topTermsInTopConcepts(no_groups, 10)
+    val topConceptDocs = lsa.topDocsInTopConcepts(no_groups, 10)
     for ((terms, docs) <- topConceptTerms.zip(topConceptDocs)) {
       println("Concept terms: " + terms.map(_._1).mkString(", "))
       println("Concept docs: " + docs.map(_._1).mkString(", "))
