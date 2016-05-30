@@ -22,7 +22,7 @@ import org.scalatest.{FunSuite,Matchers}
 @RunWith(classOf[JUnitRunner])
 class LatentSemanticAnalyzerTest extends FunSuite with SharedSparkContext with Matchers {
   val xml_dump = "src/test/resources/nlp/enwiki_sports_music.xml"
-  val stopwords_file = "src/main/resources/nlp/stopwords.txt"
+  val stopwords_file = "src/main/resources/nlp/en_stopwords.txt"
 
   test("create ls analyzer") {
     val no_groups = 4
