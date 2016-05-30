@@ -1,3 +1,5 @@
 src/test/resources/dbpedia/mappings/* linguist-vendored=false
 src/test/resources/dbpedia/* linguist-vendored=false
 src/test/resources/dumps/* linguist-vendored=false
+src/main/resources/nlp/* linguist-vendored=fales
+src/test/resources/nlp/* linguist-vendored=false
