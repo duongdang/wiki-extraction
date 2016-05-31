@@ -20,10 +20,10 @@ import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
 import java.io.Serializable
 
-case class ConceptRelevance(
-  relation: String,
+case class SemanticData(
+  data_type: String,
   ref: String,
-  obj: String,
+  key: String,
   score: Double
 ) extends Serializable
 
@@ -53,19 +53,19 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
 
   def conceptRelevances() = {
     val singularVals = sArray.zipWithIndex.map {
-      case(v, i) => ConceptRelevance("concept_strength", i.toString, null, v) }
+      case(v, i) => SemanticData("concept_strength", i.toString, null, v) }
 
     val termToConcept = sc.parallelize(List.range(0, numConcepts)).flatMap{ conceptId =>
       val offs = conceptId * numConcepts
       vArray.slice(offs, offs + numConcepts).zipWithIndex.map{
         case (score, id) =>
-          ConceptRelevance("term_to_concept", conceptId.toString, distTermIds(id), score)
+          SemanticData("term_to_concept", conceptId.toString, distTermIds(id), score)
       }
     }
 
     val docToConcept = List.range(0, numConcepts).map { conceptId =>
       val docWeights = svd.U.rows.map(_.toArray(conceptId)).zipWithUniqueId
-      docWeights.map{case (score, id) => ConceptRelevance("doc_to_concept", conceptId.toString, distDocIds(id), score)}
+      docWeights.map{case (score, id) => SemanticData("doc_to_concept", conceptId.toString, distDocIds(id), score)}
     }.reduce(_ union _)
 
     val termToTerm = sc.parallelize(List.range(0, numTerms)).flatMap { termId =>
@@ -75,7 +75,7 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
       val VS = new BDenseMatrix(numTerms, numConcepts, vsArray)
       val termScores = (VS * termRowVec).toArray.zipWithIndex
       termScores.map {
-        case(score, oid) => ConceptRelevance("term_to_term", distTermIds(termId), distTermIds(oid), score)
+        case(score, oid) => SemanticData("term_to_term", distTermIds(termId), distTermIds(oid), score)
       }
     }
 
