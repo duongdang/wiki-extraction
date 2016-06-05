@@ -6,9 +6,6 @@
 
 package com.github.duongdang.wiki.nlp
 
-import edu.stanford.nlp.ling.CoreAnnotations.{LemmaAnnotation, SentencesAnnotation, TokensAnnotation}
-import edu.stanford.nlp.pipeline.{Annotation, StanfordCoreNLP}
-
 import java.io.{FileOutputStream, PrintStream}
 import java.util.Properties
 
@@ -128,26 +125,14 @@ object ParseWikipedia {
     }
   }
 
-  def createNLPPipeline(): StanfordCoreNLP = {
-    val props = new Properties()
-    props.put("annotators", "tokenize, ssplit, pos, lemma")
-    new StanfordCoreNLP(props)
-  }
-
-  def plainTextToLemmas(text: String, stopWords: Set[String], pipeline: StanfordCoreNLP)
+  def plainTextToLemmas(text: String, stopWords: Set[String])
     : Seq[String] = {
-    val doc = new Annotation(text)
-    pipeline.annotate(doc)
-    val lemmas = new ArrayBuffer[String]()
-    val sentences = doc.get(classOf[SentencesAnnotation])
-    for (sentence <- sentences.asScala;
-         token <- sentence.get(classOf[TokensAnnotation]).asScala) {
-      val lemma = token.get(classOf[LemmaAnnotation])
-      if (lemma.length > 2 && !stopWords.contains(lemma) && isOnlyLetters(lemma)) {
-        lemmas += lemma.toLowerCase
-      }
-    }
-    lemmas
+    text
+      .split("[^\\w-]")
+      .map(_.toLowerCase)
+      .filter(_.size > 2)
+      .filter(isOnlyLetters)
+      .filter(!stopWords.contains(_))
   }
 
   def isOnlyLetters(str: String): Boolean = {
@@ -163,12 +148,4 @@ object ParseWikipedia {
   }
 
   def loadStopWords(path: String) = scala.io.Source.fromFile(path).getLines().toSet
-
-  def saveDocFreqs(path: String, docFreqs: Array[(String, Int)]) {
-    val ps = new PrintStream(new FileOutputStream(path))
-    for ((doc, freq) <- docFreqs) {
-      ps.println(s"$doc\t$freq")
-    }
-    ps.close()
-  }
 }

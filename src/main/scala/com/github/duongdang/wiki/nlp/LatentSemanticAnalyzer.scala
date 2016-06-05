@@ -33,10 +33,10 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
   import LatentSemanticAnalyzer._
   val stopWords = sc.broadcast(ParseWikipedia.loadStopWords(stopwords_fn)).value
 
-  val (termDocMatrix, termIds, docIds, idfs) = preprocess()
+  @transient val (termDocMatrix, termIds, docIds, idfs) = preprocess()
   termDocMatrix.cache()
-  val mat = new RowMatrix(termDocMatrix)
-  val svd = mat.computeSVD(numConcepts, computeU=true)
+  @transient val mat = new RowMatrix(termDocMatrix)
+  @transient val svd = mat.computeSVD(numConcepts, computeU=true)
 
   val vArray = sc.broadcast(svd.V.toArray).value
   val sArray = sc.broadcast(svd.s.toArray).value
@@ -94,11 +94,9 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
 
     val plainText = pages.filter(_ != null).flatMap(ParseWikipedia.wikiXmlToPlainText)
 
-    val lemmatized = plainText.mapPartitions(iter => {
-      val pipeline = ParseWikipedia.createNLPPipeline()
-      iter.map{ case(title, contents) =>
-        (title, ParseWikipedia.plainTextToLemmas(contents, stopWords, pipeline))}
-    })
+    val lemmatized = plainText.map {
+      case (title, contents) => (title, ParseWikipedia.plainTextToLemmas(contents, stopWords))
+    }
 
     val filtered = lemmatized.filter(_._2.size > 1)
 

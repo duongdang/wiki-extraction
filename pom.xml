@@ -63,17 +63,6 @@
       <version>4.2-SNAPSHOT</version>
     </dependency>
     <dependency>
-      <groupId>edu.stanford.nlp</groupId>
-      <artifactId>stanford-corenlp</artifactId>
-      <version>${corenlp.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>edu.stanford.nlp</groupId>
-      <artifactId>stanford-corenlp</artifactId>
-      <version>${corenlp.version}</version>
-      <classifier>models</classifier>
-    </dependency>
-    <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-mllib_${scala.minor.version}</artifactId>
       <version>${spark.version}</version>
