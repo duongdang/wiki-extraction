@@ -30,7 +30,7 @@ case class SemanticData(
 class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwords_fn: String,
   numConcepts: Int = 1000,
   numTermsCap: Int = 50000) extends Serializable {
-  import LatentSemanticAnalyzer._
+
   val stopWords = sc.broadcast(ParseWikipedia.loadStopWords(stopwords_fn)).value
 
   @transient val (termDocMatrix, termIds, docIds, idfs) = preprocess()
@@ -41,8 +41,8 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
   val vArray = sc.broadcast(svd.V.toArray).value
   val sArray = sc.broadcast(svd.s.toArray).value
   val vsArray = {
-    val VS = multiplyByDiagonalMatrix(svd.V, svd.s)
-    val normalizedVS = rowsNormalized(VS)
+    val VS = LatentSemanticAnalyzer.multiplyByDiagonalMatrix(svd.V, svd.s)
+    val normalizedVS = LatentSemanticAnalyzer.rowsNormalized(VS)
     sc.broadcast(normalizedVS.toArray).value
   }
 
@@ -197,94 +197,4 @@ object LatentSemanticAnalyzer {
     }))
   }
 
-  /**
-   * Finds terms relevant to a term. Returns the term IDs and scores for the terms with the highest
-   * relevance scores to the given term.
-   */
-  def topTermsForTerm(normalizedVS: BDenseMatrix[Double], termId: Int): Seq[(Double, Int)] = {
-    // Look up the row in VS corresponding to the given term ID.
-    val termRowVec = new BDenseVector[Double](row(normalizedVS, termId).toArray)
-
-    // Compute scores against every term
-    val termScores = (normalizedVS * termRowVec).toArray.zipWithIndex
-
-    // Find the terms with the highest scores
-    termScores.sortBy(-_._1).take(10)
-  }
-
-  /**
-   * Finds docs relevant to a doc. Returns the doc IDs and scores for the docs with the highest
-   * relevance scores to the given doc.
-   */
-  def topDocsForDoc(normalizedUS: RowMatrix, docId: Long): Seq[(Double, Long)] = {
-    // Look up the row in US corresponding to the given doc ID.
-    val docRowArr = row(normalizedUS, docId)
-    val docRowVec = Matrices.dense(docRowArr.length, 1, docRowArr)
-
-    // Compute scores against every doc
-    val docScores = normalizedUS.multiply(docRowVec)
-
-    // Find the docs with the highest scores
-    val allDocWeights = docScores.rows.map(_.toArray(0)).zipWithUniqueId
-
-    // Docs can end up with NaN score if their row in U is all zeros.  Filter these out.
-    allDocWeights.filter(!_._1.isNaN).top(10)
-  }
-
-  /**
-   * Finds docs relevant to a term. Returns the doc IDs and scores for the docs with the highest
-   * relevance scores to the given term.
-   */
-  def topDocsForTerm(US: RowMatrix, V: Matrix, termId: Int): Seq[(Double, Long)] = {
-    val termRowArr = row(V, termId).toArray
-    val termRowVec = Matrices.dense(termRowArr.length, 1, termRowArr)
-
-    // Compute scores against every doc
-    val docScores = US.multiply(termRowVec)
-
-    // Find the docs with the highest scores
-    val allDocWeights = docScores.rows.map(_.toArray(0)).zipWithUniqueId
-    allDocWeights.top(10)
-  }
-
-  def termsToQueryVector(terms: Seq[String], idTerms: Map[String, Int], idfs: Map[String, Double])
-    : BSparseVector[Double] = {
-    val indices = terms.map(idTerms(_)).toArray
-    val values = terms.map(idfs(_)).toArray
-    new BSparseVector[Double](indices, values, idTerms.size)
-  }
-
-  def topDocsForTermQuery(US: RowMatrix, V: Matrix, query: BSparseVector[Double])
-    : Seq[(Double, Long)] = {
-    val breezeV = new BDenseMatrix[Double](V.numRows, V.numCols, V.toArray)
-    val termRowArr = (breezeV.t * query).toArray
-
-    val termRowVec = Matrices.dense(termRowArr.length, 1, termRowArr)
-
-    // Compute scores against every doc
-    val docScores = US.multiply(termRowVec)
-
-    // Find the docs with the highest scores
-    val allDocWeights = docScores.rows.map(_.toArray(0)).zipWithUniqueId
-    allDocWeights.top(10)
-  }
-
-  def printTopTermsForTerm(normalizedVS: BDenseMatrix[Double],
-      term: String, idTerms: Map[String, Int], termIds: Map[Int, String]) {
-    printIdWeights(topTermsForTerm(normalizedVS, idTerms(term)), termIds)
-  }
-
-  def printTopDocsForDoc(normalizedUS: RowMatrix, doc: String, idDocs: Map[String, Long],
-      docIds: Map[Long, String]) {
-    printIdWeights(topDocsForDoc(normalizedUS, idDocs(doc)), docIds)
-  }
-
-  def printTopDocsForTerm(US: RowMatrix, V: Matrix, term: String, idTerms: Map[String, Int],
-      docIds: Map[Long, String]) {
-    printIdWeights(topDocsForTerm(US, V, idTerms(term)), docIds)
-  }
-
-  def printIdWeights[T](idWeights: Seq[(Double, T)], entityIds: Map[T, String]) {
-    println(idWeights.map{case (score, id) => (entityIds(id), score)}.mkString(", "))
-  }
 }
