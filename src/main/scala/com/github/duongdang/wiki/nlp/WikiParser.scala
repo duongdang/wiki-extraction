@@ -25,12 +25,12 @@ import java.util.logging.{Level, Logger}
 
 import scala.xml.XML
 
-object ParseWikipedia {
+object WikiParser {
   /**
    * Returns a document-term matrix where each element is the TF-IDF of the row's document and
    * the column's term.
    */
-  val logger = Logger.getLogger("ParseWikipedia")
+  val logger = Logger.getLogger("WikiParser")
 
   def documentTermMatrix(docs: RDD[(String, Seq[String])],
     stopWords: Set[String], numTerms: Int,

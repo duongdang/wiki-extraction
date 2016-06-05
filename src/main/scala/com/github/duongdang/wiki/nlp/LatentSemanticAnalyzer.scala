@@ -31,7 +31,7 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
   numConcepts: Int = 1000,
   numTermsCap: Int = 50000) extends Serializable {
 
-  val stopWords = sc.broadcast(ParseWikipedia.loadStopWords(stopwords_fn)).value
+  val stopWords = sc.broadcast(WikiParser.loadStopWords(stopwords_fn)).value
 
   @transient val (termDocMatrix, termIds, docIds, idfs) = preprocess()
   termDocMatrix.cache()
@@ -75,7 +75,8 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
       val VS = new BDenseMatrix(numTerms, numConcepts, vsArray)
       val termScores = (VS * termRowVec).toArray.zipWithIndex
       termScores.map {
-        case(score, oid) => SemanticData("term_to_term", distTermIds(termId), distTermIds(oid), score)
+        case(score, oid) => SemanticData("term_to_term",
+          distTermIds(termId), distTermIds(oid), score)
       }
     }
 
@@ -92,15 +93,15 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
   def preprocess() : (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
     val pages = Util.readToPageRdd(sc, input)
 
-    val plainText = pages.filter(_ != null).flatMap(ParseWikipedia.wikiXmlToPlainText)
+    val plainText = pages.filter(_ != null).flatMap(WikiParser.wikiXmlToPlainText)
 
     val lemmatized = plainText.map {
-      case (title, contents) => (title, ParseWikipedia.plainTextToLemmas(contents, stopWords))
+      case (title, contents) => (title, WikiParser.plainTextToLemmas(contents, stopWords))
     }
 
     val filtered = lemmatized.filter(_._2.size > 1)
 
-    ParseWikipedia.documentTermMatrix(filtered, stopWords, numTermsCap, sc)
+    WikiParser.documentTermMatrix(filtered, stopWords, numTermsCap, sc)
   }
 
   def topTermsInTopConcepts(numConcepts: Int, numTerms: Int): Seq[Seq[(String, Double)]] = {
