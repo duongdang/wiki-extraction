@@ -16,6 +16,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 import org.apache.spark.rdd.RDD
+import org.apache.hadoop.fs._
 
 import scala.collection.JavaConverters._
 import scala.collection.Map
@@ -25,6 +26,9 @@ import java.util.logging.{Level, Logger}
 
 import com.github.duongdang.wiki.io.Util
 import org.apache.spark.rdd.RDD
+
+import org.tartarus.snowball.ext._
+import org.tartarus.snowball.SnowballProgram
 
 import scala.xml.XML
 
@@ -44,14 +48,37 @@ object WikiParser {
    */
   def parse(sc: SparkContext, input: String, stopwordsFn: String, numTermsCap: Int)
       : (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
+    val fs = FileSystem.get(sc.hadoopConfiguration)
+
+    val langs = Util.listLanguages(fs, new Path(input))
+    if (langs.size != 1) {
+      throw new RuntimeException("Only one language is expected. Found in input: %s".format(langs.mkString(",")))
+    }
+    val lang = langs(0)
     val stopWords = sc.broadcast(WikiParser.loadStopWords(stopwordsFn)).value
-
-    val pages = Util.readToPageRdd(sc, input)
-
+    val pages = Util.readToLangPageRdd(sc, new Path(input)).map(_._2)
     val plainText = pages.filter(_ != null).flatMap(wikiXmlToPlainText)
-
-    val lemmatized = plainText.map {
-      case (title, contents) => (title, plainTextToLemmas(contents, stopWords))
+    val lemmatized = plainText.mapPartitions { iter =>
+      val stemmer: SnowballProgram = lang match {
+        case "da" => new DanishStemmer()
+        case "nl" => new DutchStemmer()
+        case "en" => new EnglishStemmer()
+        case "fi" => new FinnishStemmer()
+        case "fr" => new FrenchStemmer()
+        case "de" => new GermanStemmer()
+        case "hu" => new HungarianStemmer()
+        case "it" => new ItalianStemmer()
+        case "no" => new NorwegianStemmer()
+        case "pt" => new PortugueseStemmer()
+        case "ro" => new RomanianStemmer()
+        case "ru" => new RussianStemmer()
+        case "es" => new SpanishStemmer()
+        case "sk" => new SwedishStemmer()
+        case "tr" => new TurkishStemmer()
+        case _ => new EnglishStemmer()
+      }
+      iter.map{ case (title, contents) => (title, plainTextToLemmas(contents, stopWords, stemmer))
+      }
     }
 
     val filtered = lemmatized.filter(_._2.size > 1)
@@ -153,13 +180,18 @@ object WikiParser {
     }
   }
 
-  def plainTextToLemmas(text: String, stopWords: Set[String])
+  def plainTextToLemmas(text: String, stopWords: Set[String], stemmer: SnowballProgram)
     : Seq[String] = {
     text
       .split("[^\\w-]")
       .map(_.toLowerCase)
       .filter(_.size > 2)
       .filter(isOnlyLetters)
+      .map { w =>
+      stemmer.setCurrent(w)
+      stemmer.stem()
+      stemmer.getCurrent
+    }
       .filter(!stopWords.contains(_))
   }
 

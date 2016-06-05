@@ -68,6 +68,11 @@
       <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.lucene</groupId>
+      <artifactId>lucene-snowball</artifactId>
+      <version>3.0.3</version>
+    </dependency>
 
     <!-- Test -->
     <dependency>
