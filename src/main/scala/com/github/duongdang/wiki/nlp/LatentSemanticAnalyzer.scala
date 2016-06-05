@@ -6,7 +6,6 @@
 
 package com.github.duongdang.wiki.nlp
 
-import com.github.duongdang.wiki.io.Util
 import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector,
 SparseVector => BSparseVector}
 
@@ -14,7 +13,7 @@ import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.SparkContext._
 import org.apache.spark.mllib.linalg._
 import org.apache.spark.mllib.linalg.distributed.RowMatrix
-import org.apache.spark.rdd.RDD
+
 
 import scala.collection.Map
 import scala.collection.mutable.ArrayBuffer
@@ -27,13 +26,11 @@ case class SemanticData(
   score: Double
 ) extends Serializable
 
-class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwords_fn: String,
+class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwordsFn: String,
   numConcepts: Int = 1000,
   numTermsCap: Int = 50000) extends Serializable {
 
-  val stopWords = sc.broadcast(WikiParser.loadStopWords(stopwords_fn)).value
-
-  @transient val (termDocMatrix, termIds, docIds, idfs) = preprocess()
+  @transient val (termDocMatrix, termIds, docIds, idfs) = WikiParser.parse(sc, input, stopwordsFn, numTermsCap)
   termDocMatrix.cache()
   @transient val mat = new RowMatrix(termDocMatrix)
   @transient val svd = mat.computeSVD(numConcepts, computeU=true)
@@ -83,27 +80,6 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
     sc.parallelize(singularVals) union termToConcept union docToConcept union termToTerm
   }
 
-  /**
-   * Returns
-   *   - an RDD of rows of the document-term matrix,
-   *   - a mapping of column indices to terms,
-   *   - a mapping of row IDs to document titles.
-   *   - idfs values
-   */
-  def preprocess() : (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
-    val pages = Util.readToPageRdd(sc, input)
-
-    val plainText = pages.filter(_ != null).flatMap(WikiParser.wikiXmlToPlainText)
-
-    val lemmatized = plainText.map {
-      case (title, contents) => (title, WikiParser.plainTextToLemmas(contents, stopWords))
-    }
-
-    val filtered = lemmatized.filter(_._2.size > 1)
-
-    WikiParser.documentTermMatrix(filtered, stopWords, numTermsCap, sc)
-  }
-
   def topTermsInTopConcepts(numConcepts: Int, numTerms: Int): Seq[Seq[(String, Double)]] = {
     val v = svd.V
     val topTerms = new ArrayBuffer[Seq[(String, Double)]]()
@@ -129,9 +105,9 @@ class LatentSemanticAnalyzer(@transient sc: SparkContext, input: String, stopwor
 }
 
 object LatentSemanticAnalyzer {
-  def apply (sc: SparkContext, input: String, stopwords_fn: String, numConcepts: Int = 100,
+  def apply (sc: SparkContext, input: String, stopwordsFn: String, numConcepts: Int = 100,
   numTermsCap: Int = 50000) =
-    new LatentSemanticAnalyzer(sc, input, stopwords_fn, numConcepts, numTermsCap)
+    new LatentSemanticAnalyzer(sc, input, stopwordsFn, numConcepts, numTermsCap)
   /**
    * Selects a row from a matrix.
    */

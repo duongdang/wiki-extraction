@@ -23,6 +23,9 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import java.util.logging.{Level, Logger}
 
+import com.github.duongdang.wiki.io.Util
+import org.apache.spark.rdd.RDD
+
 import scala.xml.XML
 
 object WikiParser {
@@ -31,6 +34,31 @@ object WikiParser {
    * the column's term.
    */
   val logger = Logger.getLogger("WikiParser")
+
+  /**
+   * Returns
+   *   - an RDD of rows of the document-term matrix,
+   *   - a mapping of column indices to terms,
+   *   - a mapping of row IDs to document titles.
+   *   - idfs values
+   */
+  def parse(sc: SparkContext, input: String, stopwordsFn: String, numTermsCap: Int)
+      : (RDD[Vector], Map[Int, String], Map[Long, String], Map[String, Double]) = {
+    val stopWords = sc.broadcast(WikiParser.loadStopWords(stopwordsFn)).value
+
+    val pages = Util.readToPageRdd(sc, input)
+
+    val plainText = pages.filter(_ != null).flatMap(wikiXmlToPlainText)
+
+    val lemmatized = plainText.map {
+      case (title, contents) => (title, plainTextToLemmas(contents, stopWords))
+    }
+
+    val filtered = lemmatized.filter(_._2.size > 1)
+
+    documentTermMatrix(filtered, stopWords, numTermsCap, sc)
+  }
+
 
   def documentTermMatrix(docs: RDD[(String, Seq[String])],
     stopWords: Set[String], numTerms: Int,
