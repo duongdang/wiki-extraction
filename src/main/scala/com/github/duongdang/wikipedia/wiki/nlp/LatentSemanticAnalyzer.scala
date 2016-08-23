@@ -4,7 +4,7 @@
  * See LICENSE file for further information.
  */
 
-package com.github.duongdang.wiki.nlp
+package com.github.duongdang.wikipedia.nlp
 
 import breeze.linalg.{DenseMatrix => BDenseMatrix, DenseVector => BDenseVector,
 SparseVector => BSparseVector}

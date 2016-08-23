@@ -11,29 +11,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.github.duongdang.wiki.nlp
+package com.github.duongdang.wikipedia.structure
 
-import java.util.logging.{Level, Logger}
-
-import org.apache.spark._
+import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.SparkConf
 
-import org.apache.hadoop.fs._
+object App {
 
-object WikiLsaApp {
   def main(args : Array[String]) {
-    val input = args(0)
-    val output = args(1)
-    val stopwordsFn = args(2)
-    val numConcepts = args(3).toInt
-    val numTermsCap = args(4).toInt
+    val conf = new SparkConf()
 
-    val sc = new SparkContext(new SparkConf().setAppName("Extraction"))
+    val sc = new SparkContext(conf)
 
-    val sqlContext = new SQLContext(sc)
-    import sqlContext.implicits._
-    val lsa = LatentSemanticAnalyzer(sc, input, stopwordsFn, numConcepts, numTermsCap)
-    lsa.conceptRelevances().toDF().saveAsParquetFile(output)
+    val col = sc.parallelize(0 to 100 by 5)
+    val smp = col.sample(true, 4)
+    val colCount = col.count
+    val smpCount = smp.count
+
+    println("orig count = " + colCount)
+    println("sampled count = " + smpCount)
   }
+
 }

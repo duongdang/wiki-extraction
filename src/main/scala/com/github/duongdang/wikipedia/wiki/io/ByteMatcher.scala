@@ -1,4 +1,4 @@
-package com.github.duongdang.wiki.io
+package com.github.duongdang.wikipedia.io
 import java.io.InputStream
 import org.apache.hadoop.fs.Seekable
 import org.apache.hadoop.io.DataOutputBuffer

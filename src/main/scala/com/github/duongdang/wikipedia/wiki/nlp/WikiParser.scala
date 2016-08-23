@@ -4,7 +4,7 @@
  * See LICENSE file for further information.
  */
 
-package com.github.duongdang.wiki.nlp
+package com.github.duongdang.wikipedia.nlp
 
 import java.io.{FileOutputStream, PrintStream}
 import java.util.Properties
@@ -24,7 +24,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import java.util.logging.{Level, Logger}
 
-import com.github.duongdang.wiki.io.Util
+import com.github.duongdang.wikipedia.io.Util
 import org.apache.spark.rdd.RDD
 
 import org.tartarus.snowball.ext._

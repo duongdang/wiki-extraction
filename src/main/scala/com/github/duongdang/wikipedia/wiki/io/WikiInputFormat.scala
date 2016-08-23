@@ -1,4 +1,4 @@
-package com.github.duongdang.wiki.io
+package com.github.duongdang.wikipedia.io
 
 import org.apache.hadoop.io.{DataOutputBuffer, LongWritable, Text}
 import org.apache.hadoop.io.compress.{CompressionCodecFactory, SplittableCompressionCodec}

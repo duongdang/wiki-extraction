@@ -11,8 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.github.duongdang.wiki.structure
-import com.github.duongdang.wiki.io.Util
+package com.github.duongdang.wikipedia.structure
+import com.github.duongdang.wikipedia.io.Util
 
 import java.util.logging.{Level, Logger}
 
