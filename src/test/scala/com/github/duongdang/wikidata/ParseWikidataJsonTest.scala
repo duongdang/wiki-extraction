@@ -38,8 +38,8 @@ class ParseWikidataJsonTest extends FunSuite with Matchers {
 
   test("test sitelink parser") {
     val jsonString = scala.io.Source.fromFile(paris_json).mkString
-    val links = WikidataSiteLink.fromText(jsonString)
-    links should contain (WikidataSiteLink("Q90", "item", "enwiki", "Paris", "https://en.wikipedia.org/wiki/Paris"))
+    val links = WikidataSitelink.fromText(jsonString)
+    links should contain (WikidataSitelink("Q90", "item", "enwiki", "Paris", "https://en.wikipedia.org/wiki/Paris"))
   }
 
   test("test claim parser") {
